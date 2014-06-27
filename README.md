@@ -4,6 +4,8 @@ craftimport
 @carolinecblaker contribution:
 EDITED for my purposes to work with Craft 2.1
 
+Thanks to Ben Croker for your help and expertise with the code where I had no idea what I was looking at.
+
 Craft CMS plugin to import entries from XML.
 
 ### Credits
