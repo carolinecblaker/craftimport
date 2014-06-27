@@ -23,8 +23,9 @@ class CraftImportService extends BaseApplicationComponent
         $sectionId = 3; // Visit settings for your Section and check the URL
         $typeId = 3; // Visit Entry Types for your Section and check the URL for the Entry Type
 
+
         foreach ($xml->blog[0]->entry as $importEntry) {
-            // Validate fetch on screen
+           // Validate fetch on screen
             /*echo $importEntry->entry_date . '<br />';
             echo $importEntry->title . '<br />';
             echo $importEntry->slug . '<br />';
@@ -44,25 +45,25 @@ class CraftImportService extends BaseApplicationComponent
             // Check for existing entry
             $command = craft()->db->createCommand();
             $entryRecord =    $command
-                        ->select('entryId')
-                        ->from('entries_i18n')
-                        ->where(array("AND", "slug='" . $importEntry->slug . "'", "sectionId='" . $sectionId . "'"))
+                        ->select('elementId')
+                        ->from('elements_i18n')
+                        ->where(array("AND", "slug='" . $importEntry->slug . "'"))
                         ->queryRow();
 
             // If existing entry, load that; Else new entry
-            if (is_null($entryRecord['entryId']))
+            if (is_null($entryRecord['elementId']))
             {
                 $entry = new EntryModel();
-                //echo 'null';
+              // echo 'null';
             }
             else
             {
-                $entry = craft()->entries->getEntryById( $entryRecord['entryId'] );
-                //echo $entryRecord['entryId'];
+                $entry = craft()->entries->getEntryById( $entryRecord['elementId'] );
+                //echo $entryRecord['elementId'];
             }
             //echo "\n\n";
 
-            // Find these in craft/app/models/EntryModel
+             // Find these in craft/app/models/EntryModel
             $entry->sectionId = $sectionId;
             $entry->typeId = $typeId; 
             $entry->authorId = 1; // 1 for Admin
@@ -73,25 +74,33 @@ class CraftImportService extends BaseApplicationComponent
                 'title' => $importEntry->title,
                 'post' => $post
             ));
+           
             if ( craft()->entries->saveEntry($entry) )
             {
                 // Note that we're doing nothing to limit the number of records processed
-                //echo "Entry saved<br />\n\n";
-                if ( $importTags ) {
+             //   echo "Entry saved<br />\n\n";
+                if ( $importTags && (count($importEntry->categories->category) > 0) ) {
+                // print_r($importTags); echo "<br />\n\n";
                     $command = craft()->db->createCommand();
                     $entryRecord =  $command
-                                    ->select('entryId')
-                                    ->from('entries_i18n')
-                                    ->where(array("AND", "slug='" . $importEntry->slug . "'", "sectionId='" . $sectionId . "'"))
+                                    ->select('elementId')
+                                    ->from('elements_i18n')
+                                    ->where("slug='" . $importEntry->slug . "'")
                                     ->queryRow();
 
                     $tags = array();
 
                     foreach ($importEntry->categories->category as $category) {
-                        $tag = new TagModel();
-                        $tag->setId = $tagSetId;
+                    //echo "tag process <br>\n\n";
+                    
+                        $tag = new TagModel($tagSetId);
+                     //   echo "TAG SET ID". $tagSetId;
+                        
+                        $tag->groupId = $tagSetId;
+                      // echo "hee";
                         $tag->name = $category;
-                        //print_r($tag);
+                     //   print_r($tag);
+                        
                         craft()->tags->saveTag($tag);
 
                         $command = craft()->db->createCommand();
@@ -100,17 +109,28 @@ class CraftImportService extends BaseApplicationComponent
                                         ->from('tags')
                                         ->where("name='" . $category . "'")
                                         ->queryRow();
-                        //echo $tagRecord;
-                        echo 'entry: ' . $entryRecord['entryId'] . "<br />";
-                        echo 'tag: ' . $tagRecord['id'] . "<br />";
+                       // echo $tagRecord;
+                      //  echo 'entry: ' . $entryRecord['elementId'] . "<br />";
+                       // echo 'tag: ' . $tagRecord['id'] . "<br />";
 
                         $tags[] = $tagRecord['id'];
                     }
-                    craft()->relations->saveRelations($tagFieldId, $entryRecord['entryId'], $tags);
-                    echo "<br />\n\n";
+                    $tagFieldRecord = FieldRecord::model()->findByPk($tagFieldId);
+
+					$tagFieldModel = FieldModel::populateModel($tagFieldRecord);
+					
+					$entryRecord = EntryRecord::model()->findById($entryRecord['elementId']);
+
+					$entryModel = EntryModel::populateModel($entryRecord);
+					
+					//echo  $entryRecord['elementId']." ->the string<br />\n\n";
+                    craft()->relations->saveRelations($tagFieldModel, $entryModel, $tags);
+                    
                 }
                 continue;
             } else {
+            
+         
                 $retVal = false;
                 break;
             }
